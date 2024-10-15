@@ -79,18 +79,6 @@ class Feature2DProcessor(SampleProcessor):
         x = x * rescale.view(1, -1, 1, 32).contiguous() + self.mean.view(1, -1, 1, 32).contiguous()
         return x
 
-def pad_or_tunc_tolen(prior_text_encoder_hidden_states, prior_text_mask, prior_prompt_embeds, len_size=77):
-    if(prior_text_encoder_hidden_states.shape[1]<len_size):
-        prior_text_encoder_hidden_states = torch.cat([prior_text_encoder_hidden_states, \
-            torch.zeros(prior_text_mask.shape[0], len_size-prior_text_mask.shape[1], \
-            prior_text_encoder_hidden_states.shape[2], device=prior_text_mask.device, \
-            dtype=prior_text_encoder_hidden_states.dtype)],1)
-        prior_text_mask = torch.cat([prior_text_mask, torch.zeros(prior_text_mask.shape[0], len_size-prior_text_mask.shape[1], device=prior_text_mask.device, dtype=prior_text_mask.dtype)],1)
-    else:
-        prior_text_encoder_hidden_states = prior_text_encoder_hidden_states[:,0:len_size]
-        prior_text_mask = prior_text_mask[:,0:len_size]
-    prior_text_encoder_hidden_states = prior_text_encoder_hidden_states.permute(0,2,1).contiguous()
-    return prior_text_encoder_hidden_states, prior_text_mask, prior_prompt_embeds
 
 class BASECFM(torch.nn.Module, ABC):
     def __init__(
@@ -163,43 +151,6 @@ class BASECFM(torch.nn.Module, ABC):
 
         return sol[-1]
 
-    def compute_loss(self, x1, mu, added_cond_kwargs, latent_masks, validation_mode=False):
-        """Computes diffusion loss
-
-        Args:
-            x1 (torch.Tensor): Target
-                shape: (batch_size, n_channels, mel_timesteps, n_feats)
-            mu (torch.Tensor): output of encoder
-                shape: (batch_size, n_channels, mel_timesteps, n_feats)
-
-        Returns:
-            loss: conditional flow matching loss
-            y: conditional flow
-                shape: (batch_size, n_channels, mel_timesteps, n_feats)
-        """
-        b = mu[0].shape[0]
-
-        # random timestep
-        if(validation_mode):
-            t = torch.ones([b, 1, 1, 1], device=mu[0].device, dtype=mu[0].dtype) * 0.5
-        else:
-            t = torch.rand([b, 1, 1, 1], device=mu[0].device, dtype=mu[0].dtype)
-        # sample noise p(x_0)
-        z = torch.randn_like(x1)
-
-        y = (1 - (1 - self.sigma_min) * t) * z + t * x1
-        u = x1 - (1 - self.sigma_min) * z
-
-        out = self.estimator(
-            torch.cat([y, *mu],1), 
-            timestep = t.squeeze(-1).squeeze(-1).squeeze(-1),
-            added_cond_kwargs=added_cond_kwargs,
-        ).sample
-
-        weight = (latent_masks > 1.5).unsqueeze(1).unsqueeze(-1).repeat(1, out.shape[1], 1, out.shape[-1]).float() + (latent_masks < 0.5).unsqueeze(1).unsqueeze(-1).repeat(1, out.shape[1], 1, out.shape[-1]).float() * 0.01
-
-        loss = F.mse_loss(out * weight, u * weight, reduction="sum") / weight.sum()
-        return loss
 
 class PromptCondAudioDiffusion(nn.Module):
     def __init__(
@@ -292,72 +243,6 @@ class PromptCondAudioDiffusion(nn.Module):
 
 
 
-
-    def forward(self, input_audios, lyric, latents, latent_masks, validation_mode=False, \
-        additional_feats = ['spk', 'lyric'], \
-        train_rvq=True, train_ssl=False,layer=5):
-        if not hasattr(self,"device"):
-            self.device = input_audios.device
-        if not hasattr(self,"dtype"):
-            self.dtype = input_audios.dtype
-        device = self.device
-        input_audio_0 = input_audios[:,0,:]
-        input_audio_1 = input_audios[:,1,:]
-        input_audio_0 = self.preprocess_audio(input_audio_0)
-        input_audio_1 = self.preprocess_audio(input_audio_1)
-
-        with torch.no_grad():
-            with autocast(enabled=False):
-                muencoder_emb = self.extract_muencoder_embeds(input_audio_0,input_audio_1,layer)
-            muencoder_emb = muencoder_emb.detach()
-
-        text_encoder_hidden_states, text_mask = None, None
-
-
-        if(train_rvq):
-            quantized_muencoder_emb, _, _, commitment_loss_muencoder_emb, codebook_loss_muencoder_emb,_ = self.rvq_muencoder_emb(muencoder_emb) # b,d,t
-        else:
-            muencoder_emb = muencoder_emb.float()
-            self.rvq_muencoder_emb.eval()
-            quantized_muencoder_emb, _, _, commitment_loss_muencoder_emb, codebook_loss_muencoder_emb,_ = self.rvq_muencoder_emb(muencoder_emb) # b,d,t
-            commitment_loss_muencoder_emb = commitment_loss_muencoder_emb.detach()
-            codebook_loss_muencoder_emb = codebook_loss_muencoder_emb.detach()
-            quantized_muencoder_emb = quantized_muencoder_emb.detach()
-
-        commitment_loss = commitment_loss_muencoder_emb
-        codebook_loss = codebook_loss_muencoder_emb
-
-        alpha=1
-        quantized_muencoder_emb = quantized_muencoder_emb * alpha + muencoder_emb * (1-alpha)
-
-        quantized_muencoder_emb = self.cond_muencoder_emb(quantized_muencoder_emb.permute(0,2,1)) # b t 16*32
-        quantized_muencoder_emb = quantized_muencoder_emb.reshape(quantized_muencoder_emb.shape[0], quantized_muencoder_emb.shape[1]//2, 2, 16, 32).reshape(quantized_muencoder_emb.shape[0], quantized_muencoder_emb.shape[1]//2, 2*16, 32).permute(0,2,1,3).contiguous() # b 32 t f
-
-        scenario = np.random.choice(['start_seg', 'other_seg'])
-        if(scenario == 'other_seg'):
-            for binx in range(input_audios.shape[0]):
-                latent_masks[binx,0:random.randint(64,128)] = 1
-        
-        quantized_muencoder_emb = (latent_masks > 0.5).unsqueeze(1).unsqueeze(-1) * quantized_muencoder_emb \
-            + (latent_masks < 0.5).unsqueeze(1).unsqueeze(-1) * self.zero_cond_embedding1.reshape(1,32,1,32)
-
-
-        bsz, _, height, width = latents.shape
-        resolution = torch.tensor([height, width]).repeat(bsz, 1)
-        aspect_ratio = torch.tensor([float(height / width)]).repeat(bsz, 1)
-        resolution = resolution.to(dtype=muencoder_emb.dtype, device=device)
-        aspect_ratio = aspect_ratio.to(dtype=muencoder_emb.dtype, device=device)
-        added_cond_kwargs = {"resolution": resolution, "aspect_ratio": aspect_ratio}
-
-        if self.uncondition:
-            mask_indices = [k for k in range(quantized_muencoder_emb.shape[0]) if random.random() < 0.1]
-            if len(mask_indices) > 0:
-                quantized_muencoder_emb[mask_indices] = 0
-
-        latents = self.normfeat.project_sample(latents)
-        incontext_latents = latents * ((latent_masks > 0.5) * (latent_masks < 1.5)).unsqueeze(1).unsqueeze(-1).float()
-        loss = self.cfm_wrapper.compute_loss(latents, [incontext_latents, quantized_muencoder_emb], added_cond_kwargs, latent_masks, validation_mode=validation_mode)
-        return loss, commitment_loss.mean(), codebook_loss.mean()
 
     def init_device_dtype(self, device, dtype):
         self.device = device

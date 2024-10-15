@@ -58,9 +58,7 @@ class RVQDataset(Dataset):
     
     def get_audio_by_slice(self,index):
         
-        # wav_path = os.path.join('/apdcephfs/share_1316500/cloudezhou/MERT/MERT/converted', self.audio_names[index])
         wav_path = self.datas[index]['path']
-        # wav_path = '/apdcephfs_cq7/share_1297902/speech_data/' + wav_path[wav_path.index('Music4All'):]
         # print(wav_path)
         audio_info =  torchaudio.info(wav_path)
         origin_sample_rate = audio_info.sample_rate

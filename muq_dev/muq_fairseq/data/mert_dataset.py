@@ -429,8 +429,7 @@ class MERTDataset(FairseqDataset):
     def get_audio(self, index):
         import soundfile as sf
 
-        # wav_path = os.path.join(self.audio_root, self.audio_names[index])
-        wav_path = os.path.join('/apdcephfs/share_1316500/cloudezhou/MERT/MERT/converted', self.audio_names[index])
+        wav_path = os.path.join('pass', self.audio_names[index])
         _path, slice_ptr = parse_path(wav_path)
         # original way
         if len(slice_ptr) == 0:

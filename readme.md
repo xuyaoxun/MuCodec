@@ -2,6 +2,11 @@
 
 This repository is the official code repository for MuCodec: Ultra Low-Bitrate Music Codec. You can find our paper on [arXiv] (https://arxiv.org/pdf/2409.13216). The demo page is available [here](https://xuyaoxun.github.io/MuCodec_demo/).
 
+In this repository, we provide the Mucodec model, inference scripts, and the checkpoint trained on the Million Song Dataset.
+
+
+MuCodec supports 48kHz, dual-channel (stereo) audio reconstruction. If the original audio is in a different format, it will first be converted to 48kHz, dual-channel audio.
+
 ## Installation
 
 You can install the necessary dependencies using `requirements.txt`:
@@ -24,7 +29,7 @@ In the `generate.py` file, we have implemented several functions to facilitate t
 
 ## Note
 
-Please note that the open-sourced model was trained solely on the Million Song Dataset. Consequently, its performance on Chinese songs might not be as good as the model described in our paper. To achieve better results with Chinese songs, you can train the model with your own Chinese music dataset.
+Please note that the open-sourced model was trained solely on the Million Song Dataset. Considering the quality issues of this dataset, the open-sourced model may not achieve the same performance as demonstrated in the demo. Unfortunately, due to copyright restrictions, we are unable to release the checkpoints trained on additional datasets. However, you can use your own dataset to further train the model and achieve better results.
 
 ## License
 
