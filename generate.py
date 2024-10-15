@@ -13,7 +13,7 @@ from tools.get_melvaehifigan48k import build_pretrained_models
 import tools.torch_tools as torch_tools
 from safetensors.torch import load_file
 
-class Tango:
+class MuCodec:
     def __init__(self, \
         model_path, \
         layer_num, \
@@ -221,7 +221,7 @@ class Tango:
 
 if __name__=="__main__":
     ckpt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ckpt/mucodec.pt")
-    tango = Tango(model_path=ckpt_path,layer_num=7,load_main_model=True)
+    mucodec = MuCodec(model_path=ckpt_path,layer_num=7,load_main_model=True)
 
     filelist = []
 
@@ -241,7 +241,7 @@ if __name__=="__main__":
 
     for sample_idx, (orig_samples, lyric, st_et, fname,ori_len) in enumerate(filelist):
         print(fname, lyric)
-        wave = tango.sound2sound(orig_samples,None)
+        wave = mucodec.sound2sound(orig_samples,None)
         wave = wave[:,0:ori_len]
         torchaudio.save(os.path.join(reconstructed_dir, os.path.basename(fname)),wave.detach().cpu(), 48000)
     

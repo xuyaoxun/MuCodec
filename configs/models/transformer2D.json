@@ -1,6 +1,5 @@
 {
   "_class_name": "Transformer2DModel",
-  "_diffusers_version": "0.22.0.dev0",
   "activation_fn": "gelu-approximate",
   "attention_bias": true,
   "attention_head_dim": 72,
