@@ -1,0 +1,41 @@
+
+model:
+  mulan:
+    dim_latent: 512
+    decoupled_contrastive_learning: true
+    hierarchical_contrastive_loss: false
+    hierarchical_contrastive_loss_layers: null
+    sigmoid_contrastive_loss: false
+
+  pretraind_root: /apdcephfs_nj7/share_301796285/user/erichtchen/huggingface_cache 
+  audio_model:
+    name: models--m-a-p--MERT-v1-330M
+    model_dim: 1024
+    use_layer_idx: 6 #index of layer whose features are fed to transformer
+  text_model:
+    name: models--xlm-roberta-base
+
+  audio_transformer:
+    dim: 768
+    tf_depth: 8
+    heads: 8
+    dim_head: 64
+    attn_dropout: 0.
+    ff_dropout: 0.
+    ff_mult: 4
+  text_transformer:
+    dim: 768
+    tf_depth: 8
+    max_seq_len: 1024
+    dim_head: 64
+    heads: 8
+    attn_dropout: 0.
+    ff_dropout: 0.
+    ff_mult: 4
+
+checkpoint_path: /apdcephfs_nj7/share_301796285/user/erichtchen/huggingface_cache/others/mulan.520.prune.pt
+
+my_custom_config:
+  hello: Hello World! 
+  demo_text: "a piece of music by Pablo Samonta, belonging to the classical genres. This track conveys a hopeful mood, and primarily features the following instruments: piano."
+  demo_audio: /apdcephfs_cq2/share_1297902/speech_train/speech_transfer_data/oulyluo/likai/MTG-Jamendo/44/1277844.mp3
