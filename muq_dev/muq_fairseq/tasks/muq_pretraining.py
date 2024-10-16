@@ -329,122 +329,23 @@ class MuQPretrainingTask(FairseqTask):
             return self.cfg.data
         return self.cfg.label_dir
 
-    # def has_sharded_data(self, split):
-    #     """overwrite this function for let the trainier do dataset reload for changing the the dynamic croppings"""
-    #     logger.info(f"check whether to re-load dataset for epoch {epoch} by overwritting task.has_sharded_data()")
-    #     # find the threshold that holds epoch \in [threshold, next_threshold)
-    #     is_reload_dataset = epoch in self.dynamic_crops_epoches
 
-    #     return os.pathsep in getattr(self.cfg, "data", "") or is_reload_dataset
-    # def is_force_load_dataset(self, epoch):
     def is_force_load_dataset(self, epoch, training_restore=False):
         # find the threshold that holds epoch \in [threshold, next_threshold)
         return (epoch in self.dynamic_crops_epoches) or training_restore or (self.cfg.sharding_data > 1)
-        # for idx in range(len(self.dynamic_crops_epoches)):
-        #     if (idx == len(self.dynamic_crops_epoches)-1) or \
-        #         (epoch >= self.dynamic_crops_epoches[idx] and epoch < self.dynamic_crops_epoches[idx+1]):
-        #         return True
-        # return False
+
 
     def set_dynamic_crop_max_sample(self, epoch):
-        """ force to set the max_sample_size config for the dynamic cropping function"""
-        if epoch in self.dynamic_crops_epoches:
-            for idx in range(len(self.dynamic_crops_epoches)):
-                if (idx == len(self.dynamic_crops_epoches)-1) or \
-                    (epoch >= self.dynamic_crops_epoches[idx] and epoch < self.dynamic_crops_epoches[idx+1]):
-                        # set new cropping parameters and end loop
-                        self.max_sample_size = self.dynamic_crops[idx]*self.cfg.sample_rate
-                        self.cfg.max_sample_size = self.dynamic_crops[idx]*self.cfg.sample_rate
-                        logger.info(f"epoch {epoch} forcely set new maximum audio length as {self.dynamic_crops[idx]}s == {self.max_sample_size} samples")
-                        break
-        # logger.info(f'reloading dataset for changing the sequence length')
-        # self.load_dataset('train')
+        pass
+
     def load_dataset(self, split: str, **kwargs) -> None:
-        if len(list(filter(lambda s: s.endswith('.scp'), os.listdir(self.cfg.data)))) > 0:
-            return self.load_dataset_ark(split, **kwargs)
-        else:
-            return self.load_dataset_mert(split, **kwargs)
+        pass
 
     def load_dataset_ark(self, split, **kwargs):
-        if 'train' not in split:
-            logger.info(f'split {split} is only used for training')
-            # raise ValueError(f"No support for split: {split}")
-        else:
-            self.datasets[split] = ArkDataset(
-                wav_scp=os.path.join(self.cfg.data, f"wav_ark.scp"),
-                dur_scp=os.path.join(self.cfg.data, f"dur_ark.scp"),
-                sr=self.cfg.sample_rate,
-            )
+        pass
 
     def load_dataset_mert(self, split: str, **kwargs) -> None:
-        if 'train' in split:
-            epoch = kwargs['epoch']
-            # the epoch to change crops
-            if self.is_force_load_dataset(epoch):
-                self.set_dynamic_crop_max_sample(epoch)
-                
-            # load all training data
-            if self.cfg.sharding_data <= 1:            
-                # manifest = f"{self.cfg.data}/{split}.tsv"
-                manifest = f"{self.cfg.data}/{split}.json"
-
-                paths = [f"{self.get_label_dir()}/{split}.{l}" for l in self.cfg.labels]
-            # load part of the training data
-            else:
-                if self.cfg.load_random_data_shard:
-                    data_shard_idx = np.random.randint(self.cfg.sharding_data)
-                else:
-                    data_shard_idx = (epoch-1) % self.cfg.sharding_data # epoch start from 1
-                assert data_shard_idx < self.cfg.sharding_data
-                logger.info(f'loading shard {data_shard_idx} of {self.cfg.sharding_data} training data for ecpoh {epoch}')
-                
-                # manifest = f"{self.cfg.data}/{split}_{data_shard_idx}_{self.cfg.sharding_data}.tsv"
-                manifest = f"{self.cfg.data}/{split}_{data_shard_idx}_{self.cfg.sharding_data}.json"
-
-                paths = [f"{self.get_label_dir()}/{split}_{data_shard_idx}_{self.cfg.sharding_data}.{l}" for l in self.cfg.labels]
-        else:
-            # manifest = f"{self.cfg.data}/{split}.tsv"
-            manifest = f"{self.cfg.data}/{split}.json"
-
-            paths = [f"{self.get_label_dir()}/{split}.{l}" for l in self.cfg.labels]
-
-        dicts = [self.target_dictionary] if self.cfg.fine_tuning else self.dictionaries
-        pad_list = [dict.pad() for dict in dicts]
-        eos_list = [dict.eos() for dict in dicts]
-
-        if self.numpy_memmap_label:
-            procs = [PaddedNumpyLabelEncoder() for dict in dicts]
-        else:
-            procs = [LabelEncoder(dict) for dict in dicts]
-            
-        self.datasets[split] = MERTDataset(
-            manifest,
-            sample_rate=self.cfg.sample_rate,
-            label_paths=paths, # this containes the ensemble label sequence names
-            label_rates=self.cfg.label_rate,
-            pad_list=pad_list,
-            eos_list=eos_list,
-            label_scp_path=self.cfg.label_scp_path,
-            label_scp_clip_duration=self.cfg.label_scp_clip_duration,
-            label_processors=procs,
-            max_keep_sample_size=self.cfg.max_keep_size,
-            min_keep_sample_size=self.cfg.min_sample_size,
-            max_sample_size=self.max_sample_size,
-            pad_audio=self.cfg.pad_audio,
-            normalize=self.cfg.normalize,
-            store_labels=self.store_labels,
-            npmemmap=self.numpy_memmap_label,
-            random_crop=self.cfg.random_crop,
-            single_target=self.cfg.single_target,
-            augmentation_effects=self.augmentation_effects,
-            augmentation_probs=self.augmentation_probs,
-            inbatch_noise_augment_len_range=self.inbatch_noise_augment_len_range,
-            inbatch_noise_augment_number_range=self.inbatch_noise_augment_number_range,
-            inbatch_noise_augment_volume=self.cfg.inbatch_noise_augment_volume,
-            cqt_prediction_bin=self.cqt_loss_bin_dataloader,
-            clip_secs=self.cfg.clip_secs,
-            shuffle=self.cfg.dataset_shuffle,
-        )
+        pass
 
     def max_positions(self) -> Tuple[int, int]:
         return (sys.maxsize, sys.maxsize)
