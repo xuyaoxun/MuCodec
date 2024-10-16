@@ -58,52 +58,14 @@ class ArkDataset(RawAudioDataset):
         return self.dataset_len
 
     def __getitem__(self, idx):
-        # print("getitem idx: ", idx)
-        try_cnt = 0 
-        while True:
-            idx = idx + try_cnt
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    key = self.keys[idx]
-                    # print(self.wav_data[key].keys())
-                    wav = self.wav_data[key]['wav'] 
-                
-                wav = torch.from_numpy(wav).float()       
-                wav = self.postprocess(wav)
-                return {"id": idx, "source": wav}
-            except Exception as e:
-                try_cnt += 1
-                if try_cnt > 50:
-                    return {"id": idx, "source": None}
-                continue
+        pass
 
     def size(self, idx):
-        return self.sizes[idx]
+        pass
     
     def postprocess(self, wav):
-        if wav.dim() == 2:
-            wav = wav.mean(-1)
-        assert wav.dim() == 1, wav.dim()
-
-        if self.normalize:
-            with torch.no_grad():
-                wav = F.layer_norm(wav, wav.shape)
-        return wav
+        pass
     
     def collater(self, samples):
-        return super().collater(samples)
+        pass
 
-if __name__ == '__main__':
-    import torch
-    raw_tensor_str = torch.Tensor.__repr__
-    torch.Tensor.__str__ = torch.Tensor.__repr__ = lambda self: f'Tensor{{Size({[*self.shape]}) {self.device} {str(self.dtype)[6]}{str(self.dtype)[-2:]}}}' if self.numel() > 10 else raw_tensor_str(self)
-
-    ds = ArkDataset(
-        wav_scp='data/ark_demo/wav_ark.scp',
-        dur_scp='data/ark_demo/dur_ark.scp',
-        sr=24000,
-    )
-
-    for i in range(len(ds)):
-        print(ds[i])
