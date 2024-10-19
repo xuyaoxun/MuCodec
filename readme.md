@@ -9,7 +9,7 @@ MuCodec supports 48kHz, dual-channel (stereo) audio reconstruction. If the origi
 
 ## Installation
 
-You can install the necessary dependencies using the `requirements.txt` file:
+You can install the necessary dependencies using the `requirements.txt` file with Python 3.8.12:
 
 ```bash
 pip install -r requirements.txt
