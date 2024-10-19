@@ -29,6 +29,8 @@ muq_dev/muq.pt
 ckpt/mucodec.pt
 ```
 
+The file `audioldm_48k.pth` is sourced from https://huggingface.co/haoheliu/audioldm_48k/blob/main/audioldm_48k.pth.
+
 ## Inference
 
 To run inference, use the following command:
@@ -49,7 +51,7 @@ Please note that the open-sourced model was trained solely on the Million Song D
 
 The code in this repository is released under the MIT license as found in the [LICENSE](LICENSE) file.
 
-The model weights in this repository are released under the CC-BY-NC 4.0 license as found in the [LICENSE_weights](LICENSE_weights) file.
+The model weights (muq.pt, mucodec.pt) in this repository are released under the CC-BY-NC 4.0 license, as detailed in the [LICENSE_weights](LICENSE_weights) file. 
 
 ## Citation
 
